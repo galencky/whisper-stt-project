@@ -1,6 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Force pip to use a modern Jinja2 so that nothing tries to install Jinja2-2.6
+Jinja2>=3.1
+# ─────────────────────────────────────────────────────────────────────────────
 openai-whisper
 tqdm
 google-generativeai
 python-dotenv
 requests
-watchdog
+watchdog==4.0.0
