@@ -1,13 +1,9 @@
-# ─────────────────────────────────────────────────────────────
-# Dockerfile   (build with:  docker build -t whisper-stt . )
-# ─────────────────────────────────────────────────────────────
 FROM python:3.11-slim
 
 # ---------- system packages ----------
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        gcc tini ffmpeg  \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends gcc tini && \
+    rm -rf /var/lib/apt/lists/*
 
 # ---------- working dir ----------
 WORKDIR /app
@@ -17,25 +13,18 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ---------- project ----------
-COPY app/   app/
-COPY prompts/ prompts/
-COPY start.sh .
+COPY . .
 
-# ---------- non-root user (match Synology share UID/GID) ----------
-ARG PUID=1000
-ARG PGID=100
-RUN groupadd -g ${PGID} syno && \
-    useradd  -u ${PUID} -g syno -ms /bin/bash syno
-# take ownership of project files
-RUN chown -R syno:syno /app
+# ---------- ensure data dirs exist & writable ----------
+RUN mkdir -p /app/data/inbox /app/data/processed /app/data/transcripts \
+           /app/data/parsed /app/data/markdown /app/data/uploaded \
+           /app/data/models /app/data/logs && \
+    chmod -R 775 /app/data                              # <-- R/W fix
 
-# ---------- create mutable folders ----------
-RUN mkdir -p /data /app/output && \
-    chmod -R 775 /data /app/output
-VOLUME ["/data"]   # <- bind your share here
-
-# ---------- final tweaks ----------
+# ---------- non-root user ----------
+RUN useradd -ms /bin/bash syno && \
+    chown -R syno:syno /app
 USER syno
-RUN chmod +x /app/start.sh
-ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["/app/start.sh"]
+
+ENTRYPOINT ["tini", "--"]
+CMD ["python", "main.py"]

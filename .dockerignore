@@ -1,27 +1,31 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
+# Ignore data/ so Docker build context stays small
+data/
 
-# Hidden/system
-.DS_Store
-Thumbs.db
-
-# Logs and outputs
-*.log
+# Ignore logs (runtime artifacts)
 logs/
-output/
-*.zip
 
-# Runtime cache
-/data/
-inbox/
-processed/
+# Ignore all generated outputs
 transcripts/
 parsed/
 markdown/
-models/
+uploaded/
+processed/
 
-# Environment
+# Ignore Python cache
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore Git metadata
+.git
+.gitignore
+
+# Ignore IDE/editor folders
+.vscode/
+.idea/
+
+# Ignore environment file (we pass secrets via --env-file at run time)
 .env
-.env.*
+
+# Ignore node_modules (if you ever add frontend)
+node_modules/

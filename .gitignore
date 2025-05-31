@@ -1,11 +1,47 @@
+# Ignore all data‐folder contents (created at runtime)
+data/
+# Inside data/, ignore everything, but keep folder structure in Git if you want:
+# (Optionally, you can commit empty directories using a .gitkeep file instead.)
+# So we ignore everything under data (models, logs, processed, etc.)
+data/**
+
+# Ignore Python bytecode caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore virtualenv / pipenv / poetry caches (if any)
+.venv/
+env/
+venv/
+pipenv-*
+poetry.lock
+
+# Ignore Whisper model cache (if kept outside data/)
+models/
+*.pt
+
+# Ignore transcript/parsing outputs (if kept outside data/)
+transcripts/
+parsed/
 markdown/
 uploaded/
-parsed/
-.env
-inbox/
 processed/
-transcripts/
-models/
+logs/
 
-*.tar
-*.tar
+# Ignore IDE/editor config files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore environment variable file
+.env
+
+# Ignore any local Docker-related artifacts
+docker-compose.override.yml
+docker-compose.local.yml
