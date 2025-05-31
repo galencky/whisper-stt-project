@@ -1,0 +1,10 @@
+markdown/
+uploaded/
+parsed/
+.env
+inbox/
+processed/
+transcripts/
+models/
+
+*.tar

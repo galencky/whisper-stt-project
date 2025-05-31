@@ -1,0 +1,5 @@
+openai-whisper
+tqdm
+google-generativeai
+python-dotenv
+requests

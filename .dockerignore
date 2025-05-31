@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Hidden/system
+.DS_Store
+Thumbs.db
+
+# Logs and outputs
+*.log
+logs/
+output/
+*.zip
+
+# Runtime cache
+/data/
+inbox/
+processed/
+transcripts/
+parsed/
+markdown/
+models/
+
+# Environment
+.env
+.env.*
