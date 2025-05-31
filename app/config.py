@@ -38,7 +38,10 @@ EMAIL_USER          = os.getenv("EMAIL_USER")
 EMAIL_PASS          = os.getenv("EMAIL_PASS")
 EMAIL_TO            = os.getenv("EMAIL_TO")
 PREFERRED_LANGUAGE  = os.getenv("PREFERRED_LANGUAGE", "zh")  # "" => autodetect
-AUDIO_EXT           = {".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm"}
+AUDIO_EXT = {
+    ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm",
+    ".mp4", ".aac", ".wma", ".alac", ".aiff", ".opus", ".mkv", ".mov"
+}
 
 # Ensure every folder exists
 for d in (INBOX_DIR, PROCESSED_DIR, TRANSCRIPTS_DIR, PARSED_DIR,

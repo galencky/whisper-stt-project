@@ -3,3 +3,4 @@ tqdm
 google-generativeai
 python-dotenv
 requests
+watchdog
