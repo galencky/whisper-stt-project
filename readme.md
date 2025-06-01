@@ -73,16 +73,17 @@ Local mapping inside Kaggle:
 
 flowchart TD
     A["Drive Inbox"] -->|download| B["/from_google_drive"]
-    B --> C["Whisper v3"] -->|.txt| D["/transcription"]
-    D --> E["Parser"] -->|_parsed.txt| F["/parsed"]
-    F -->|prompt| G["Gemini Flash 2.5"] -->|.md| H["/markdown"]
-    H -->|upload| I["HackMD"]
-    H --> J["/uploaded"]  %% just use plain arrow, skip label for 'move'
+    B --> C["Whisper v3"] --> D["/transcription"]
+    D --> E["Parser"] --> F["/parsed"]
+    F --> G["Gemini Flash 2.5"] --> H["/markdown"]
+    H --> I["HackMD"]
+    H --> J["/uploaded"]
     B --> K["Drive Archive"]
     D --> L["Drive processed/stem"]
     F --> L
     H --> L
     I --> M["E-mail links"]
+
 
 ```
 
