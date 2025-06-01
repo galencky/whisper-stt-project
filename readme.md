@@ -1,145 +1,132 @@
-# Whisper-STT Pipeline (Kaggle Edition)  
-*End-to-end Speech-to-Text ✚ AI Summaries ✚ Publishing*
+# Whisper-STT Pipeline (Kaggle Edition)
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
+*End-to-end Speech-to-Text ➜ Gemini AI summaries ➜ One-click publishing*
 
-> **Author:** Kuan-Yuan Chen (M.D.)  
-> **Email:** galen147258369@gmail.com  
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 
----
-
-## ✨ Features
-
-| Stage | What it does | Key Tech |
-|-------|--------------|----------|
-| **1. Ingest** | Pulls new audio from a **Google Drive “Inbox” folder** into the Kaggle working directory | Google Drive API |
-| **2. Transcribe** | Runs **OpenAI Whisper large-v3** (GPU-accelerated, cached) to produce word-level transcripts | `openai-whisper`, PyTorch |
-| **3. Parse** | Re-buckets raw transcripts into **5-minute blocks** for cleaner context | Python regex / `datetime` |
-| **4. Summarise** | Feeds parsed text + a **system prompt stored in Google Docs** to **Gemini 2.5 Flash** for instant Markdown summaries | Google Generative AI Python SDK |
-| **5. Publish** | Uploads each summary to **HackMD** (public read, signed-in edit) and moves the source audio to an “Archive” folder in Drive | HackMD API, Google Drive API |
-| **6. Notify** | E-mails you a list of HackMD links once all uploads succeed | Gmail SMTP |
-| **7. House-keep** | Syncs processed files back to Drive and wipes the Kaggle workspace (but keeps the Whisper model cache) | Python `shutil`, Drive API |
+> **Author :** Kuan-Yuan Chen (M.D.)
+> **E-mail :** [galen147258369@gmail.com](mailto:galen147258369@gmail.com)
 
 ---
 
-## 🗂 Folder / ID Layout
+## ✨ Main Features
 
-| Google Drive ID | Purpose | Local mount (inside Kaggle) |
-|-----------------|---------|-----------------------------|
-| `1AKnppH…` | **Inbox** – audio awaiting transcription | `/kaggle/working/from_google_drive` |
-| `1iuVCOQ…` | **Archive** – transcribed audio | *n/a* |
-| `1zpXQm…` | **Processed** – `.txt`, `_parsed.txt`, `.md` | *n/a* |
+* **Google Drive ingestion** – watches an **Inbox** folder and downloads new audio to the Kaggle runtime.
+* **GPU Whisper transcription** – runs **Whisper large-v3** with on-disk model caching (speeds up re-runs).
+* **Smart parsing** – re-chunks transcripts every 5 min for cleaner context blocks.
+* **Gemini 2.5 Flash summaries** – uses a system prompt stored in **Google Docs** so you can tweak wording without redeploying.
+* **HackMD publishing** – creates a public-read note for every summary and tags it `#whisper-stt-project`.
+* **E-mail notification** – optional Gmail SMTP that sends you the HackMD links once processing completes.
+* **Drive housekeeping** – pushes back `.txt`, `_parsed.txt`, `.md` and archives the original audio, then wipes the Kaggle workspace (model cache survives).
+
+---
+
+## 📂 Google Drive Structure
+
+| Folder name         | Purpose                                                                            | Folder ID (change in code)          |
+| ------------------- | ---------------------------------------------------------------------------------- | ----------------------------------- |
+| `to_be_transcribed` | **Inbox** – drop audio here                                                        | `1AKnppHssmAwkjBo2EPI8Twf6782hH2xv` |
+| `transcribed`       | **Archive** – audio that is done                                                   | `1iuVCOQ6dpg0tff6bHxmUpl4WDIhVybWO` |
+| `processed`         | **Outputs** – each audio gets its own sub-folder with `.txt`, `_parsed.txt`, `.md` | `1zpXQm4PKSD2PXSxmK3Q45VH2wSDbTGcr` |
+
+Local mapping inside Kaggle:
 
 ```
-
-Parent
-├─ Inbox (to\_be\_transcribed)      ← download →  /from\_google\_drive
-├─ Archive (transcribed)          ← audio moved here
-└─ Processed
-└─ <stem> /
-│  <stem>.txt
-│  <stem>\_parsed.txt
-└─ <stem>.md
-
-````
+/kaggle/working
+├─ from_google_drive/        ← downloaded audio
+├─ transcription/            ← Whisper .txt
+├─ parsed/                   ← _parsed.txt (5-min chunks)
+├─ markdown/                 ← Gemini summaries (.md)
+└─ uploaded/                 ← moved after HackMD upload
+```
 
 ---
 
-## ⚡ Quick-Start (3 mins)
+## ⚡ Quick Start
 
-1. **Fork → “Kaggle Notebook”**  
-   *Runtime ▸ “Accelerator = GPU” is strongly recommended.*
+1. **Fork this repo** ➜ open the notebook on **Kaggle** ➜ `Runtime ▸ Accelerator ▸ GPU`.
 
-2. **Enable required APIs** in your Google Cloud project  
-   - Drive API  
-   - Docs API  
+2. **Enable APIs** in Google Cloud: *Drive API* and *Docs API*.
 
-3. **Create a `kaggle.json` Secrets bundle** (`Add-ons ▸ Secrets`)  
-   | Key | Value |
-   |-----|-------|
-   | `GDRIVE_SERVICE` | *contents of your `service-account.json`* |
-   | `GEMINI_API_KEY` | *your genAI key* |
-   | `HACKMD_TOKEN` | *personal access token* |
-   | `EMAIL_USER` / `EMAIL_PASS` / `EMAIL_TO` | *(optional)* |
+3. **Add secrets** in *Kaggle ▸ Add-ons ▸ Secrets*
 
-4. **Fill in Drive folder IDs** (top of `README` or notebook)  
-   ```python
-   to_be_transcribed = "1AKnppH…"   # Inbox
-   transcribed       = "1iuVCOQ…"   # Archive
-````
+   | Key              | What to paste                      |
+   | ---------------- | ---------------------------------- |
+   | `GDRIVE_SERVICE` | full JSON key of a Service Account |
+   | `GEMINI_API_KEY` | Gemini Pro/Flash API key           |
+   | `HACKMD_TOKEN`   | HackMD personal access token       |
+   | `EMAIL_USER`     | Gmail address (optional)           |
+   | `EMAIL_PASS`     | Gmail App password (optional)      |
+   | `EMAIL_TO`       | Where to send the report           |
 
-5. **Upload audio** to the **Inbox** folder and hit **▶ Run All**.
+4. **Edit the three folder IDs** at the top of `pipeline.ipynb` if you changed them.
 
-   * Transcripts & summaries appear in `/kaggle/working/*`.
-   * HackMD links land in your inbox (if e-mail enabled).
+5. Upload audio ( `.wav`, `.mp3`, … ) to *Inbox* and click **Run All**.
+
+6. Grab transcripts & Markdown in the Drive **processed** folder or open the e-mail with HackMD links.
 
 ---
 
-## 🏗 Detailed Pipeline Logic
+## 🏗 Pipeline – How it Works
 
 ```mermaid
 flowchart TD
-    A[Google Drive “Inbox”] -->|API download| B(/kaggle/working/from_google_drive)
-    B --> C[Whisper large-v3] -->|.txt| D[/transcription]
+    A[Drive “Inbox”] -->|download| B[/from_google_drive]
+    B --> C[Whisper v3] -->|.txt| D[/transcription]
     D --> E[Parser] -->|_parsed.txt| F[/parsed]
-    F -->|Prompt + Gemini| G[Gemini Flash 2.5] -->|.md| H[/markdown]
-    H -->|API upload| I[HackMD note]
+    F -->|prompt| G[Gemini Flash 2.5] -->|.md| H[/markdown]
+    H -->|upload| I[HackMD]
     H -->|move| J[/uploaded]
-    I --> K[Send e-mail summary]
-    subgraph Drive sync
-        H & D & F -->|API upload| L[Drive “Processed”/<stem>]
-        B -->|move audio| M[Drive “Archive”]
-    end
+    B -->|move audio| K[Drive “Archive”]
+    D & F & H -->|sync| L[Drive “processed”/<stem>]
+    I --> M[E-mail links]
 ```
 
-*Key implementation notes*
+### Key implementation details
 
-* **Model caching** – Whisper downloads once to `/kaggle/working/whisper_models` (persisted across runs).
-* **Chunking** – regular expressions split transcripts every 5 minutes, giving Gemini \~3 k tokens per request for cost & speed.
-* **System prompt** – stored centrally in Google Docs (`DOC_ID`) so editorial tweaks don’t require code changes.
-* **HackMD hygiene** – titles auto-cleaned, single tag `#whisper-stt-project` appended, public-read links returned.
-* **Idempotency** – each run checks for **`new_files` flag**; if false, the heavy steps are skipped.
+* **Model cache** lives in `/kaggle/working/whisper_models` – Kaggle persists this between notebook versions, saving \~2 GB download.
+* **`new_files` safeguard** – if no new audio is detected, the heavy transcription/summarisation stages are skipped automatically.
+* **System prompt** – fetched from a single Google Doc (`DOC_ID`) so non-tech users can update it.
+* **Idempotent uploads** – each Markdown file is verified after upload; missing pieces are reported.
 
 ---
 
-## 🔧 Configuration Options
+## 🔧 Configuration
 
-| Variable             | Default                          | Description                                                 |
-| -------------------- | -------------------------------- | ----------------------------------------------------------- |
-| `PREFERRED_LANGUAGE` | `"zh"`                           | Force Whisper transcription language (`None` = auto-detect) |
-| `SYSTEM_PROMPT`      | *(Doc content)*                  | Prompt prepended to each Gemini call                        |
-| `GENAI_MODEL`        | `gemini-2.5-flash-preview-05-20` | Tunable for quality vs. speed                               |
-| `HAS_EMAIL`          | *env-driven*                     | If any e-mail secret is missing, mail step auto-skips       |
+| Variable             | Default                            | Description                                                           |
+| -------------------- | ---------------------------------- | --------------------------------------------------------------------- |
+| `PREFERRED_LANGUAGE` | `"zh"`                             | Force Whisper to a language (`None` = auto)                           |
+| `GENAI_MODEL`        | `"gemini-2.5-flash-preview-05-20"` | swap if you have access to newer models                               |
+| `CHUNK_SECONDS`      | `300`                              | length of each parsed block                                           |
+| `HAS_EMAIL`          | auto                               | e-mail step is skipped when any of the three mail secrets are missing |
 
 ---
 
 ## 🩺 Troubleshooting
 
-| Symptom                                      | Fix                                                                                  |
-| -------------------------------------------- | ------------------------------------------------------------------------------------ |
-| **`Failed to load Whisper`**                 | Ensure GPU is on; verify 16 GB+ RAM quota.                                           |
-| **`HttpError 403` from Drive**               | The service-account email must have “viewer + uploader” access to the three folders. |
-| **Gemini returns empty / `Invalid API key`** | Confirm `GEMINI_API_KEY` in Kaggle Secrets and billing status.                       |
-| **HackMD 401**                               | Regenerate your token (`Settings ▸ API Token`).                                      |
-| **Email not sent**                           | Gmail may block “less secure app” login — use an App Password.                       |
+| Issue                           | Remedy                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| **Whisper OOM / CUDA error**    | Switch to *T4* or *A100* instance; set `PREFERRED_LANGUAGE=None` to save VRAM. |
+| **`HttpError 403` (Drive)**     | Share all three Drive folders with your Service-Account e-mail.                |
+| **Gemini 401 / empty response** | Check that billing is enabled for your API key; test with `curl`.              |
+| **HackMD 401**                  | Regenerate token in HackMD ▸ Settings ▸ API Token.                             |
+| **E-mail not sent**             | Use Gmail App-Password and allow SMTP over SSL :465.                           |
 
 ---
 
 ## 🤝 Contributing
 
-1. Fork the repo & create a branch: `git checkout -b feat/my-feature`
-2. Commit your changes: `git commit -m "Add my feature"`
-3. Push & open a Pull Request. Issues & feature requests welcome!
+1. `git checkout -b feat/awesome-idea`
+2. `git commit -m "Add awesome idea"`
+3. `git push origin feat/awesome-idea` ➜ open a PR.
+   Bug reports & feature requests are welcome in Issues.
 
 ---
 
-## 📄 License
+## 📜 License
 
-This project is licensed under the **MIT License** – see `LICENSE` for details.
+Released under the **MIT License** – see [`LICENSE`](./LICENSE) for full text.
 
 ---
 
-> Built with ❤️ to turn *raw voice* into *actionable notes* in one click.
-
-```
-```
+Built with ❤️ to turn **raw voice** ➜ **concise knowledge** in one click.
