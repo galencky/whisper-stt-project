@@ -1,169 +1,145 @@
-# 📝 Whisper Speech Summarizer & HackMD Uploader
+# Whisper-STT Pipeline (Kaggle Edition)  
+*End-to-end Speech-to-Text ✚ AI Summaries ✚ Publishing*
 
-A complete workflow for **batch-transcribing audio files**, **summarizing speech with Gemini Flash 2.5**, **publishing summaries to HackMD**, and **notifying users via email**.
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 
----
-
-## Features
-
-- **Audio → Text**: Uses [OpenAI Whisper](https://github.com/openai/whisper) to transcribe audio files in your preferred language.
-- **Timestamp Processing**: Cleans up Whisper's transcripts, segments into ~5 minute paragraphs, and saves to `.txt`.
-- **Speech Summarization**: Sends the processed transcript to Google Gemini (Flash 2.5) for markdown summaries using a structured prompt.
-- **HackMD Integration**: Publishes each summary to [HackMD](https://hackmd.io/) and retrieves shareable links.
-- **Email Notification**: Automatically emails you all the HackMD summary links after upload.
+> **Author:** Kuan-Yuan Chen (M.D.)  
+> **Email:** galen147258369@gmail.com  
 
 ---
 
-## Folder Structure
+## ✨ Features
+
+| Stage | What it does | Key Tech |
+|-------|--------------|----------|
+| **1. Ingest** | Pulls new audio from a **Google Drive “Inbox” folder** into the Kaggle working directory | Google Drive API |
+| **2. Transcribe** | Runs **OpenAI Whisper large-v3** (GPU-accelerated, cached) to produce word-level transcripts | `openai-whisper`, PyTorch |
+| **3. Parse** | Re-buckets raw transcripts into **5-minute blocks** for cleaner context | Python regex / `datetime` |
+| **4. Summarise** | Feeds parsed text + a **system prompt stored in Google Docs** to **Gemini 2.5 Flash** for instant Markdown summaries | Google Generative AI Python SDK |
+| **5. Publish** | Uploads each summary to **HackMD** (public read, signed-in edit) and moves the source audio to an “Archive” folder in Drive | HackMD API, Google Drive API |
+| **6. Notify** | E-mails you a list of HackMD links once all uploads succeed | Gmail SMTP |
+| **7. House-keep** | Syncs processed files back to Drive and wipes the Kaggle workspace (but keeps the Whisper model cache) | Python `shutil`, Drive API |
+
+---
+
+## 🗂 Folder / ID Layout
+
+| Google Drive ID | Purpose | Local mount (inside Kaggle) |
+|-----------------|---------|-----------------------------|
+| `1AKnppH…` | **Inbox** – audio awaiting transcription | `/kaggle/working/from_google_drive` |
+| `1iuVCOQ…` | **Archive** – transcribed audio | *n/a* |
+| `1zpXQm…` | **Processed** – `.txt`, `_parsed.txt`, `.md` | *n/a* |
 
 ```
 
-whisper-stt-project/
-│
-├── inbox/          # Put audio files here (.wav, .mp3, etc.)
-├── processed/      # Audio files are moved here after processing
-├── transcripts/    # Raw Whisper transcripts (.txt)
-├── parsed/         # Cleaned, 5-min-segmented transcript files
-├── markdown/       # Gemini-generated markdown summaries
-├── uploaded/       # Markdown files after HackMD upload
-├── models/         # Whisper model files/cache
-├── .env            # Your secrets (see below)
-├── requirements.txt
-├── README.md
-└── your\_scripts.py
+Parent
+├─ Inbox (to\_be\_transcribed)      ← download →  /from\_google\_drive
+├─ Archive (transcribed)          ← audio moved here
+└─ Processed
+└─ <stem> /
+│  <stem>.txt
+│  <stem>\_parsed.txt
+└─ <stem>.md
 
 ````
 
 ---
 
-## Setup
+## ⚡ Quick-Start (3 mins)
 
-### 1. Install dependencies
+1. **Fork → “Kaggle Notebook”**  
+   *Runtime ▸ “Accelerator = GPU” is strongly recommended.*
 
-```bash
-pip install -r requirements.txt
+2. **Enable required APIs** in your Google Cloud project  
+   - Drive API  
+   - Docs API  
+
+3. **Create a `kaggle.json` Secrets bundle** (`Add-ons ▸ Secrets`)  
+   | Key | Value |
+   |-----|-------|
+   | `GDRIVE_SERVICE` | *contents of your `service-account.json`* |
+   | `GEMINI_API_KEY` | *your genAI key* |
+   | `HACKMD_TOKEN` | *personal access token* |
+   | `EMAIL_USER` / `EMAIL_PASS` / `EMAIL_TO` | *(optional)* |
+
+4. **Fill in Drive folder IDs** (top of `README` or notebook)  
+   ```python
+   to_be_transcribed = "1AKnppH…"   # Inbox
+   transcribed       = "1iuVCOQ…"   # Archive
 ````
 
-### 2. Prepare your `.env` file
+5. **Upload audio** to the **Inbox** folder and hit **▶ Run All**.
 
-Create a `.env` file in your project root with:
+   * Transcripts & summaries appear in `/kaggle/working/*`.
+   * HackMD links land in your inbox (if e-mail enabled).
 
-```env
-GEMINI_API_KEY=your-google-gemini-api-key
-HACKMD_TOKEN=your-hackmd-api-token
-EMAIL_USER=your@email.com
-EMAIL_PASS=your-email-password-or-app-password
-EMAIL_TO=recipient@email.com
+---
+
+## 🏗 Detailed Pipeline Logic
+
+```mermaid
+flowchart TD
+    A[Google Drive “Inbox”] -->|API download| B(/kaggle/working/from_google_drive)
+    B --> C[Whisper large-v3] -->|.txt| D[/transcription]
+    D --> E[Parser] -->|_parsed.txt| F[/parsed]
+    F -->|Prompt + Gemini| G[Gemini Flash 2.5] -->|.md| H[/markdown]
+    H -->|API upload| I[HackMD note]
+    H -->|move| J[/uploaded]
+    I --> K[Send e-mail summary]
+    subgraph Drive sync
+        H & D & F -->|API upload| L[Drive “Processed”/<stem>]
+        B -->|move audio| M[Drive “Archive”]
+    end
 ```
 
-* **GEMINI\_API\_KEY**: Get from [Google AI Studio](https://aistudio.google.com/app/apikey).
-* **HACKMD\_TOKEN**: See [HackMD API Docs](https://hackmd.io/@hackmd-api/developer-docs).
-* **EMAIL\_USER/PASS**: Use an [App Password](https://support.google.com/accounts/answer/185833) if using Gmail.
-* **EMAIL\_TO**: Where to send the notification with HackMD links.
+*Key implementation notes*
+
+* **Model caching** – Whisper downloads once to `/kaggle/working/whisper_models` (persisted across runs).
+* **Chunking** – regular expressions split transcripts every 5 minutes, giving Gemini \~3 k tokens per request for cost & speed.
+* **System prompt** – stored centrally in Google Docs (`DOC_ID`) so editorial tweaks don’t require code changes.
+* **HackMD hygiene** – titles auto-cleaned, single tag `#whisper-stt-project` appended, public-read links returned.
+* **Idempotency** – each run checks for **`new_files` flag**; if false, the heavy steps are skipped.
 
 ---
 
-## Usage
+## 🔧 Configuration Options
 
-### 1. Place audio files in `inbox/`
-
-Supported: `.wav`, `.mp3`, `.m4a`, `.flac`, `.ogg`, `.webm`.
-
-### 2. Run the scripts in order:
-
-#### (A) **Transcribe audio and segment:**
-
-* Transcribes all audio in `inbox/` to `transcripts/` with Whisper.
-* Cleans and segments transcripts into `parsed/` (\~5min per paragraph).
-
-#### (B) **Summarize with Gemini Flash 2.5:**
-
-* Batch-sends all files in `parsed/` to Gemini, saving markdown summaries in `markdown/`.
-
-#### (C) **Upload summaries to HackMD:**
-
-* Publishes all markdowns in `markdown/` to HackMD, moves them to `uploaded/`, and collects public links.
-
-#### (D) **Notify via Email:**
-
-* Sends you an email listing all HackMD summary links.
-
-*You can run these steps as a single script or as independent modules, depending on your workflow.*
+| Variable             | Default                          | Description                                                 |
+| -------------------- | -------------------------------- | ----------------------------------------------------------- |
+| `PREFERRED_LANGUAGE` | `"zh"`                           | Force Whisper transcription language (`None` = auto-detect) |
+| `SYSTEM_PROMPT`      | *(Doc content)*                  | Prompt prepended to each Gemini call                        |
+| `GENAI_MODEL`        | `gemini-2.5-flash-preview-05-20` | Tunable for quality vs. speed                               |
+| `HAS_EMAIL`          | *env-driven*                     | If any e-mail secret is missing, mail step auto-skips       |
 
 ---
 
-## System Prompt for Gemini Summarization
+## 🩺 Troubleshooting
 
-This system uses a **precisely structured prompt** for Gemini to create consistent, high-quality summaries with markdown. The summary includes title, speaker, overview, key points, notable quotes, audience reaction, and conclusion.
-
----
-
-## Example Output
-
-* Clean transcripts:
-
-  ```
-  [00:00:00.000]
-  ...first 5 min of speech in one paragraph...
-
-  [00:05:01.234]
-  ...next 5 min...
-  ```
-* Gemini summary in markdown (sample structure):
-
-  ```markdown
-  # Title of the Speech
-
-  ### Speaker
-  * **Name**: Dr. Example
-  * **Affiliation/Role**: Example University
-  * **Event**: Medical AI Conference
-  * **Date**: 2025-05-28
-
-  ### Overview
-  The speech covered...
-
-  ### Key Points
-  - AI can transform medical documentation.
-  - Patient privacy is crucial.
-
-  ### Notable Quotes
-  * "AI will not replace doctors, but doctors who use AI will replace those who don't."
-
-  ### Audience Reaction
-  Applause at key points.
-
-  ### Conclusion
-  The speaker emphasized collaboration...
-
-  #whisper-stt-project
-  ```
+| Symptom                                      | Fix                                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **`Failed to load Whisper`**                 | Ensure GPU is on; verify 16 GB+ RAM quota.                                           |
+| **`HttpError 403` from Drive**               | The service-account email must have “viewer + uploader” access to the three folders. |
+| **Gemini returns empty / `Invalid API key`** | Confirm `GEMINI_API_KEY` in Kaggle Secrets and billing status.                       |
+| **HackMD 401**                               | Regenerate your token (`Settings ▸ API Token`).                                      |
+| **Email not sent**                           | Gmail may block “less secure app” login — use an App Password.                       |
 
 ---
 
-## Troubleshooting
+## 🤝 Contributing
 
-* Make sure your `.env` file is correct and all required API keys/tokens are set.
-* Whisper requires a compatible CUDA environment for GPU acceleration; otherwise, it defaults to CPU.
-* Gemini API quota applies.
-* HackMD uploads may fail if the token is invalid or rate limits are reached.
-
----
-
-## Acknowledgments
-
-* **OpenAI Whisper** for robust speech-to-text.
-* **Google Gemini** for LLM-powered summaries.
-* **HackMD** for easy markdown sharing.
+1. Fork the repo & create a branch: `git checkout -b feat/my-feature`
+2. Commit your changes: `git commit -m "Add my feature"`
+3. Push & open a Pull Request. Issues & feature requests welcome!
 
 ---
 
-## License
+## 📄 License
 
-MIT
+This project is licensed under the **MIT License** – see `LICENSE` for details.
 
 ---
 
-## Author
+> Built with ❤️ to turn *raw voice* into *actionable notes* in one click.
 
-Built by [galencky](mailto:galen147258369@gmail.com) | Vibecoder
+```
+```
