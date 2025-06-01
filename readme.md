@@ -21,13 +21,76 @@
 
 ---
 
-## 📂 Google Drive Structure
+## 📂 Google Drive Folder Structure
 
-| Folder name         | Purpose                                                                            | Folder ID (change in code)          |
-| ------------------- | ---------------------------------------------------------------------------------- | ----------------------------------- |
-| `to_be_transcribed` | **Inbox** – drop audio here                                                        | `1AKnppHssmAwkjBo2EPI8Twf6782hH2xv` |
-| `transcribed`       | **Archive** – audio that is done                                                   | `1iuVCOQ6dpg0tff6bHxmUpl4WDIhVybWO` |
-| `processed`         | **Outputs** – each audio gets its own sub-folder with `.txt`, `_parsed.txt`, `.md` | `1zpXQm4PKSD2PXSxmK3Q45VH2wSDbTGcr` |
+| Folder name         | Purpose                                                                                  | Folder ID (set in code)             |
+| ------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------- |
+| `to_be_transcribed` | **Inbox** – drop audio here to process                                                   | `your folder id` |
+| `transcribed`       | **Archive** – audio files already processed (moved here by script)                       | `your folder id` |
+| `processed data`    | **Outputs** – contains subfolders, each with `.txt`, `_parsed.txt`, `.md` for each audio | `your folder id` |
+
+**Local mapping inside Kaggle:**
+
+```
+/kaggle/working
+├─ from_google_drive/      # Downloaded audio from 'to_be_transcribed'
+├─ transcription/          # Whisper transcript .txt
+├─ parsed/                 # 5-minute chunked transcript (_parsed.txt)
+├─ markdown/               # Gemini summary Markdown (.md)
+└─ uploaded/               # Summaries after HackMD upload
+```
+
+---
+
+## 📋 Environment & Prerequisites
+
+* **Run this notebook:**
+  📌 You must run `whisper-stt-on-kaggle.ipynb` in a **Kaggle Notebook** (GPU recommended).
+
+* **Python version:** 3.8+ (Kaggle default)
+
+* **Kaggle image:** Default `kaggle/python` Docker image (all key libraries will auto-install).
+
+* **Hardware:** GPU strongly recommended (transcription is much slower on CPU).
+
+* **Google Cloud:**
+
+  * Enable **Google Drive API** and **Google Docs API** for your service account.
+  * Share the three Drive folders above with your service account e-mail.
+
+* **Required secrets** (add under *Kaggle ▸ Add-ons ▸ Secrets*):
+
+  | Key              | What to paste                               |
+  | ---------------- | ------------------------------------------- |
+  | `GDRIVE_SERVICE` | Service account credentials (full JSON key) |
+  | `GEMINI_API_KEY` | Gemini Pro/Flash API key                    |
+  | `HACKMD_TOKEN`   | HackMD personal access token                |
+  | `EMAIL_USER`     | Gmail address (optional)                    |
+  | `EMAIL_PASS`     | Gmail App password (optional)               |
+  | `EMAIL_TO`       | Where to send report (optional)             |
+
+---
+
+## 🚦 Running the Pipeline
+
+1. **Upload or fork** the notebook to [Kaggle Notebooks](https://www.kaggle.com/code)
+2. Set **Accelerator** to **GPU** for best speed.
+3. Make sure secrets are configured as above.
+4. **Place your audio files** (e.g., `.wav`, `.mp3`, etc.) in the `to_be_transcribed` folder in Google Drive.
+5. **Click "Run All"** in the notebook and follow the logs.
+
+---
+
+**Outputs will appear as:**
+
+* **Transcriptions:** `.txt` per audio in `/kaggle/working/transcription/`
+* **Chunked transcripts:** `_parsed.txt` in `/kaggle/working/parsed/`
+* **AI summaries:** `.md` in `/kaggle/working/markdown/` (and uploaded to HackMD)
+* **All processed data is also synced back to your "processed data" folder in Google Drive**
+
+If you enabled email, you will receive a summary of HackMD links when the pipeline finishes.
+
+---
 
 Local mapping inside Kaggle:
 
@@ -87,7 +150,7 @@ flowchart TD
 
 ```
 
-### Key implementation details
+## Key implementation details
 
 * **Model cache** lives in `/kaggle/working/whisper_models` – Kaggle persists this between notebook versions, saving \~2 GB download.
 * **`new_files` safeguard** – if no new audio is detected, the heavy transcription/summarisation stages are skipped automatically.
