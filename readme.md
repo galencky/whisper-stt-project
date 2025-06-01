@@ -71,15 +71,20 @@ Local mapping inside Kaggle:
 
 ```mermaid
 flowchart TD
-    A[Drive “Inbox”] -->|download| B[/from_google_drive]
-    B --> C[Whisper v3] -->|.txt| D[/transcription]
-    D --> E[Parser] -->|_parsed.txt| F[/parsed]
-    F -->|prompt| G[Gemini Flash 2.5] -->|.md| H[/markdown]
-    H -->|upload| I[HackMD]
-    H -->|move| J[/uploaded]
-    B -->|move audio| K[Drive “Archive”]
-    D & F & H -->|sync| L[Drive “processed”/<stem>]
-    I --> M[E-mail links]
+    A["Drive Inbox"] -->|download| B["/from_google_drive"]
+    B --> C["Whisper v3"] -->|.txt| D["/transcription"]
+    D --> E["Parser"] -->|_parsed.txt| F["/parsed"]
+    F -->|prompt| G["Gemini Flash 2.5"] -->|.md| H["/markdown"]
+    H -->|upload| I["HackMD"]
+    H -->|move|   J["/uploaded"]
+    B -->|move audio| K["Drive Archive"]
+
+    D -->|sync| L["Drive processed/stem"]
+    F -->|sync| L
+    H -->|sync| L
+
+    I --> M["E-mail links"]
+
 ```
 
 ### Key implementation details
